@@ -13,10 +13,10 @@ try:
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
     os.chdir(script_dir)
-    print("当前工作路径已设置为：", os.getcwd())
+    print("Current working path has been set into：", os.getcwd())
 except NameError:
     print("Running interactively or __file__ not defined. Assuming current directory is correct.")
-    print("当前工作路径：", os.getcwd())
+    print("Current working path:", os.getcwd())
 # --- End Setup ---
 
 class AdaptiveDataPreprocessor:

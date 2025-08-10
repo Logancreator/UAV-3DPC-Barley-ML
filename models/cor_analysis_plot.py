@@ -4,38 +4,38 @@ import scipy.stats as stats
 import seaborn as sns  # Added for enhanced styling
 import os
 
-# 设置工作目录
+# Set working directory
 try:
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
     os.chdir(script_dir)
-    print("当前工作路径已设置为：", os.getcwd())
+    print("Current working directory set to:", os.getcwd())
 except NameError:
     print("Running interactively or __file__ not defined. Assuming current directory is correct.")
-    print("当前工作路径：", os.getcwd())
+    print("Current working directory:", os.getcwd())
 
-# 读取数据
+# Read data
 df = pd.read_excel("cor_results.xlsx", sheet_name="VIs")
 
-# 检查数据
+# Check data
 print(df.head())
 
-# 设置Seaborn美化风格
+# Set Seaborn styling
 sns.set_style("whitegrid")  # Clean white background with subtle grid
 plt.rcParams['font.family'] = 'Arial'  # Use Arial for a professional look
 plt.rcParams['font.size'] = 12  # Default font size for consistency
 
-# 创建画布
+# Create canvas
 plt.figure(figsize=(8, 6), dpi=100)  # Adjusted size for better proportion, higher DPI for clarity
 
-# 自定义箱型图样式
+# Customize boxplot style
 boxprops = dict(linestyle='-', linewidth=2, color='black', facecolor=sns.color_palette("Set2")[0], alpha=0.7)
 medianprops = dict(linestyle='-', linewidth=2, color='darkred')
 whiskerprops = dict(linestyle='-', linewidth=1.5, color='black')
 capprops = dict(linestyle='-', linewidth=1.5, color='black')
 flierprops = dict(marker='o', markersize=5, markerfacecolor='gray', alpha=0.5)  # Style outliers
 
-# 绘制箱型图
+# Plot boxplot
 boxplot_dict = plt.boxplot(
     [df['2d'], df['3d']],
     labels=['2D', '3D'],  # Capitalized for better readability
@@ -47,22 +47,23 @@ boxplot_dict = plt.boxplot(
     patch_artist=True
 )
 
-# 设置标题和标签
+# Set title and labels
 plt.title('Correlation Coefficients of Two Replications: 2D vs. 3D', fontsize=16, weight='bold', pad=15)
 plt.ylabel('Correlation Coefficient', fontsize=14)
 plt.xlabel('Dimension', fontsize=14)
 
-# 自定义刻度样式
+# Customize tick styles
 plt.xticks(fontsize=12, weight='bold')
 plt.yticks(fontsize=12)
 
-# 调整网格样式
+# Adjust grid style
 plt.grid(True, linestyle='--', alpha=0.3, color='gray')
 
-# 进行t检验
+# Perform t-test
 t_stat, p_value = stats.ttest_ind(df['2d'], df['3d'], nan_policy='omit')  # Handle NaN values
 p_value = float("{:.2f}".format(p_value))
-# 判断显著性
+
+# Determine significance
 alpha = 0.05
 significance = ""
 if p_value < 0.001:
@@ -74,15 +75,15 @@ elif p_value <= 0.05:
 else:
     significance = "ns"
 
-# 计算y轴最大值用于标注位置
+# Calculate max y-value for annotation position
 max_y = max(max(df['2d'].dropna()), max(df['3d'].dropna()))
 y_annot = max_y * 0.9  # Slightly above max value
 x_annot = 1.5  # Centered between boxes
 
-# 添加显著性标注
+# Add significance annotation
 plt.text(x_annot, y_annot, significance, fontsize=16, ha='center', va='center', color='black', weight='bold')
 
-# 添加统计信息注释
+# Add statistical info annotation
 stats_text = f't = {t_stat:.2f}, p = {p_value:.2f}'
 plt.annotate(
     stats_text,
@@ -92,18 +93,18 @@ plt.annotate(
     bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white", alpha=0.8)
 )
 
-# 优化布局
+# Optimize layout
 plt.tight_layout()
 
-# 保存高分辨率图像
+# Save high-resolution image
 plt.savefig('boxplot_2d_vs_3d.png', dpi=300, bbox_inches='tight')
 
-# 显示图像
+# Show plot
 plt.show()
 
-# 打印统计结果
-print(f"t检验结果: t统计量 = {t_stat:.2f}, P值 = {p_value:.2f}")
+# Print statistical results
+print(f"T-test results: t-statistic = {t_stat:.2f}, P-value = {p_value:.2f}")
 if p_value <= alpha:
-    print("2D和3D之间的差异显著 (P <= 0.05)")
+    print("The difference between 2D and 3D is significant (P <= 0.05)")
 else:
-    print("2D和3D之间的差异不显著 (P > 0.05)")
+    print("The difference between 2D and 3D is not significant (P > 0.05)")

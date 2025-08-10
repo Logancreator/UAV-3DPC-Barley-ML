@@ -25,84 +25,36 @@ import warnings
 from sklearn.metrics import make_scorer
 warnings.filterwarnings('ignore')
 
-
-# --- 设置工作目录 ---
+# --- Set working directory ---
 try:
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
     os.chdir(script_dir)
-    print("当前工作路径已设置为：", os.getcwd())
+    print("Current working directory set to:", os.getcwd())
 except NameError:
     print("Running interactively or __file__ not defined. Assuming current directory is correct.")
-    print("当前工作路径：", os.getcwd())
+    print("Current working directory:", os.getcwd())
 
-# 1. 数据加载与预处理
+# 1. Data loading and preprocessing
 def load_and_preprocess_data(filepath):
-    """加载数据并进行预处理"""
+    """Load data and perform preprocessing"""
     data = pd.read_csv(filepath)
     
-    # 处理缺失值
+    # Handle missing values
     if data.isnull().any().any():
-        print("发现缺失值，使用中位数填补...")
+        print("Missing values detected, filling with median...")
         data = data.fillna(data.median(numeric_only=True))
     
-    # 分离特征和目标
+    # Separate features and target
     X = data.iloc[:, :-1]
     y = data.iloc[:, -1]
     
-    # 分类变量编码
+    # Encode categorical variables
     categorical_cols = X.select_dtypes(include=['object', 'category']).columns
     if len(categorical_cols) > 0:
         X = pd.get_dummies(X, columns=categorical_cols)
     
     return X, y
-
-
-# def adjusted_r2_scorer(estimator, X, y):
-#     y_pred = estimator.predict(X)
-#     return adjusted_r2_score(y, y_pred, X.shape[1], len(y))
-# adjusted_r2_scorer = make_scorer(adjusted_r2_scorer, greater_is_better=True)
-
-# # 2. 特征选择
-# def feature_selection(X, y):
-#     """使用递归特征消除进行特征选择"""
-#     print("\n=== 开始特征选择 ===")
-#     scaler = StandardScaler()
-#     X_scaled = scaler.fit_transform(X)
-#     X_scaled = pd.DataFrame(X_scaled, columns=X.columns)
-#     # 使用随机森林作为基础模型
-#     estimator = GradientBoostingRegressor(n_estimators=100, random_state=42)
-    
-#     # 设置每次迭代删除1%的特征
-#     step = max(1, int(X_scaled.shape[1] * 0.01))
-    
-#     selector = RFECV(
-#         estimator=estimator,
-#         step=step,
-#         cv=10,
-#         scoring=adjusted_r2_scorer,
-#         min_features_to_select=10,
-#         n_jobs=-1)
-    
-#     selector.fit(X_scaled, y)
-    
-#     # 获取选择的特征
-#     selected_features = X_scaled.columns[selector.support_]
-#     print(f"原始特征数: {X_scaled.shape[1]}, 选择后特征数: {len(selected_features)}")
-#     print("重要特征:", selected_features.tolist())
-    
-#     # 绘制特征选择结果
-#     plt.figure(figsize=(10, 6))
-#     n_scores = len(selector.cv_results_['mean_test_score'])
-#     plt.plot(range(selector.min_features_to_select, selector.min_features_to_select + n_scores), 
-#             selector.cv_results_['mean_test_score'])
-#     plt.xlabel("Number of Features Selected")
-#     plt.ylabel("Cross Validation Score (Adjusted R²)")
-#     plt.title("Feature Selection Performance")
-#     plt.savefig('feature_selection.png')
-#     plt.close()
-    
-#     return selected_features
 
 def adjusted_r2_score(y_true, y_pred, n_features, n_samples):
     r2 = r2_score(y_true, y_pred)
@@ -115,23 +67,23 @@ def adjusted_r2_scorer(estimator, X, y):
 
 # Feature selection function
 def feature_selection(X, y):
-    """使用递归特征消除进行特征选择"""
-    print("\n=== 开始特征选择 ===")
+    """Perform feature selection using recursive feature elimination"""
+    print("\n=== Starting feature selection ===")
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     X_scaled = pd.DataFrame(X_scaled, columns=X.columns)
     
-    # 使用随机森林作为基础模型
+    # Use Gradient Boosting as the base model
     estimator = GradientBoostingRegressor(n_estimators=100, random_state=42)
     
-    # 设置每次迭代删除1%的特征
+    # Remove 1% of features per iteration
     step = max(1, int(X_scaled.shape[1] * 0.01))
     
     selector = RFECV(
         estimator=estimator,
         step=step,
         cv=10,
-        scoring=adjusted_r2_scorer,  # Use the correctly defined scorer
+        scoring=adjusted_r2_scorer,
         min_features_to_select=10,
         n_jobs=-1
     )
@@ -139,15 +91,15 @@ def feature_selection(X, y):
     try:
         selector.fit(X_scaled, y)
     except Exception as e:
-        print(f"特征选择失败: {str(e)}")
+        print(f"Feature selection failed: {str(e)}")
         return X.columns  # Fallback to all features if selection fails
     
-    # 获取选择的特征
+    # Get selected features
     selected_features = X_scaled.columns[selector.support_]
-    print(f"原始特征数: {X_scaled.shape[1]}, 选择后特征数: {len(selected_features)}")
-    print("重要特征:", selected_features.tolist())
+    print(f"Original feature count: {X_scaled.shape[1]}, Selected feature count: {len(selected_features)}")
+    print("Important features:", selected_features.tolist())
     
-    # 绘制特征选择结果
+    # Plot feature selection results
     plt.figure(figsize=(10, 6))
     n_scores = len(selector.cv_results_['mean_test_score'])
     plt.plot(range(selector.min_features_to_select, selector.min_features_to_select + n_scores), 
@@ -161,9 +113,9 @@ def feature_selection(X, y):
     return selected_features
 
 def train_and_optimize(X_train, y_train, X_test, y_test):
-    """训练和优化回归模型"""
+    """Train and optimize regression models"""
     
-    # 定义要测试的模型
+    # Define models to test
     models = {
         'Linear Regression': LinearRegression(),
         'Ridge': Ridge(),
@@ -187,38 +139,36 @@ def train_and_optimize(X_train, y_train, X_test, y_test):
         'RANSAC': RANSACRegressor(random_state=42)
     }
     
-    # 存储结果
+    # Store results
     results = {}
     
     for name, model in models.items():
-        print(f"\n=== 训练 {name} ===")
+        print(f"\n=== Training {name} ===")
         
         try:
-            # 交叉验证
+            # Cross-validation
             cv_scores = cross_val_score(model, X_train, y_train, cv=10, scoring=adjusted_r2_score)
             cv_mean = np.mean(cv_scores)
             cv_std = np.std(cv_scores)
-            print(f"交叉验证 R²: {cv_mean:.4f} (±{cv_std:.4f})")
+            print(f"Cross-validation Adjusted R²: {cv_mean:.4f} (±{cv_std:.4f})")
             
-            # 训练模型
+            # Train model
             model.fit(X_train, y_train)
             
-            # 评估
+            # Evaluate
             y_pred = model.predict(X_test)
-
             results[name] = {
-                                'CV_R2_mean': cv_mean,  # Now represents adjusted R²
-                                'CV_R2_std': cv_std,
-                                'Test_R2': adjusted_r2_score(y_test, y_pred, X_test.shape[1], len(y_test)),  # Replace r2_score
-                                'Test_MSE': mean_squared_error(y_test, y_pred),
-                                'Test_MAE': mean_absolute_error(y_test, y_pred),
-                                'Model': model
-                            }
-            print(f"测试集 Adjusted R²: {results[name]['Test_R2']:.4f}")
-            
+                'CV_R2_mean': cv_mean,
+                'CV_R2_std': cv_std,
+                'Test_R2': adjusted_r2_score(y_test, y_pred, X_test.shape[1], len(y_test)),
+                'Test_MSE': mean_squared_error(y_test, y_pred),
+                'Test_MAE': mean_absolute_error(y_test, y_pred),
+                'Model': model
+            }
+            print(f"Test set Adjusted R²: {results[name]['Test_R2']:.4f}")
             
         except Exception as e:
-            print(f"训练 {name} 时出错: {str(e)}")
+            print(f"Error training {name}: {str(e)}")
             results[name] = {
                 'CV_R2_mean': None,
                 'CV_R2_std': None,
@@ -231,10 +181,9 @@ def train_and_optimize(X_train, y_train, X_test, y_test):
     
     return results
 
-# 4. Optuna超参数优化
+# 4. Optuna hyperparameter optimization
 def optimize_with_optuna(X_train, y_train, model_name, n_trials=100):
-    
-    """使用Optuna进行超参数优化"""
+    """Perform hyperparameter optimization using Optuna"""
     
     def objective(trial):
         if model_name == 'Random Forest':
@@ -243,7 +192,8 @@ def optimize_with_optuna(X_train, y_train, model_name, n_trials=100):
                 'max_depth': trial.suggest_int('max_depth', 1, 20),
                 'min_samples_split': trial.suggest_int('min_samples_split', 2, 50),
                 'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 50),
-                'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None])}
+                'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None])
+            }
             model = RandomForestRegressor(**params, random_state=42)
             
         elif model_name == 'XGBoost':
@@ -283,67 +233,59 @@ def optimize_with_optuna(X_train, y_train, model_name, n_trials=100):
 
         elif model_name == 'KNN Regression':
             params = {
-                'n_neighbors': trial.suggest_int('n_neighbors', 1, 30),  # 邻近点数量
-                'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),  # 权重类型
-                'algorithm': trial.suggest_categorical('algorithm', ['auto', 'ball_tree', 'kd_tree', 'brute'])  # 算法类型
+                'n_neighbors': trial.suggest_int('n_neighbors', 1, 30),
+                'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),
+                'algorithm': trial.suggest_categorical('algorithm', ['auto', 'ball_tree', 'kd_tree', 'brute'])
             }
             model = KNeighborsRegressor(**params)
 
         elif model_name == 'CatBoost':
             params = {
-                'iterations': trial.suggest_int('iterations', 100, 1000),  # 迭代次数
-                'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.3),  # 学习率
-                'depth': trial.suggest_int('depth', 4, 10),  # 树的深度
-                'l2_leaf_reg': trial.suggest_loguniform('l2_leaf_reg', 1e-8, 10),  # 叶子节点的 L2 正则化系数
-                'border_count': trial.suggest_int('border_count', 32, 255),  # 分割特征时考虑的边界数量
-                'thread_count': trial.suggest_int('thread_count', 1, 8),  # 线程数
-                'random_seed': trial.suggest_int('random_seed', 1, 1000)  # 随机种子
+                'iterations': trial.suggest_int('iterations', 100, 1000),
+                'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.3),
+                'depth': trial.suggest_int('depth', 4, 10),
+                'l2_leaf_reg': trial.suggest_loguniform('l2_leaf_reg', 1e-8, 10),
+                'border_count': trial.suggest_int('border_count', 32, 255),
+                'thread_count': trial.suggest_int('thread_count', 1, 8),
+                'random_seed': trial.suggest_int('random_seed', 1, 1000)
             }
             model = CatBoostRegressor(**params, random_state=42)
         
-
         score = cross_val_score(model, X_train, y_train, cv=10, scoring=adjusted_r2_scorer, n_jobs=-1).mean()
         return score
     
     study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler(seed=42))
     study.optimize(objective, n_trials=n_trials)
     
-    print(f"\n最佳 {model_name} 参数:")
+    print(f"\nBest {model_name} parameters:")
     for key, value in study.best_params.items():
         print(f"{key}: {value}")
-    
-    # # 可视化优化过程
-    # fig = plot_optimization_history(study)
-    # fig.write_image(f"{model_name.lower().replace(' ', '_')}_optimization_history.png")
-    
-    # fig = plot_param_importances(study)
-    # fig.write_image(f"{model_name.lower().replace(' ', '_')}_param_importance.png")
     
     return study.best_params
 
 def stratified_group_split(data, condition_col, genotype_col, test_size=0.2, random_state=42):
     """
-    根据Condition列进行分层划分，并确保同一个Genotype不出现在训练集和测试集中。
+    Perform stratified split based on Condition column, ensuring no overlap of Genotypes between train and test sets.
     
-    参数:
-        data: pandas DataFrame，包含数据集
-        condition_col: str，Condition列名
-        genotype_col: str，Genotype列名
-        test_size: float，测试集比例
-        random_state: int，随机种子
+    Parameters:
+        data: pandas DataFrame, containing the dataset
+        condition_col: str, name of the Condition column
+        genotype_col: str, name of the Genotype column
+        test_size: float, proportion of test set
+        random_state: int, random seed
     
-    返回:
-        train_data: 训练集DataFrame
-        test_data: 测试集DataFrame
+    Returns:
+        train_data: Training set DataFrame
+        test_data: Test set DataFrame
     """
-    # 确保输入数据包含必要的列
+    # Ensure required columns exist
     if condition_col not in data.columns or genotype_col not in data.columns:
-        raise ValueError("Condition或Genotype列不存在！")
+        raise ValueError("Condition or Genotype column not found!")
     
-    # 按Genotype分组，获取每组的Condition值（假设每组的Condition一致）
+    # Group by Genotype, get Condition values (assuming consistent Condition per group)
     grouped = data.groupby(genotype_col)[condition_col].first().reset_index()
     
-    # 对Genotype进行分层划分，基于Condition
+    # Perform stratified split based on Condition
     train_groups, test_groups = train_test_split(
         grouped,
         test_size=test_size,
@@ -351,28 +293,28 @@ def stratified_group_split(data, condition_col, genotype_col, test_size=0.2, ran
         random_state=random_state
     )
     
-    # 根据划分的Genotype组，提取完整的训练集和测试集
+    # Extract full train and test sets based on Genotype groups
     train_data = data[data[genotype_col].isin(train_groups[genotype_col])]
     test_data = data[data[genotype_col].isin(test_groups[genotype_col])]
     
-    # 验证Condition分布
+    # Verify Condition distribution
     train_condition_dist = train_data[condition_col].value_counts(normalize=True)
     test_condition_dist = test_data[condition_col].value_counts(normalize=True)
-    print("\n训练集Condition分布：")
+    print("\nTraining set Condition distribution:")
     print(train_condition_dist)
-    print("\n测试集Condition分布：")
+    print("\nTest set Condition distribution:")
     print(test_condition_dist)
     
-    # 验证Genotype不重复
+    # Verify no overlapping Genotypes
     train_genotypes = set(train_data[genotype_col])
     test_genotypes = set(test_data[genotype_col])
     overlapping_genotypes = train_genotypes.intersection(test_genotypes)
     if overlapping_genotypes:
-        raise ValueError(f"发现Genotype重复：{overlapping_genotypes}")
+        raise ValueError(f"Overlapping Genotypes found: {overlapping_genotypes}")
     else:
-        print("\n验证通过：训练集和测试集的Genotype无重复")
+        print("\nVerification passed: No overlapping Genotypes between train and test sets")
     
-    # 可视化Condition分布
+    # Visualize Condition distribution
     plt.figure(figsize=(8, 5))
     plt.subplot(1, 2, 1)
     train_condition_dist.plot(kind='bar', title='Train Condition Distribution')
@@ -386,132 +328,141 @@ def stratified_group_split(data, condition_col, genotype_col, test_size=0.2, ran
 
 def load_and_split_data(filepath, sheet_name, target_col, random_state, condition_col='Condition', genotype_col='Genotype'):
     """
-    加载数据并进行分层分组划分
+    Load data and perform stratified group split
     """
-    # 加载数据
-    data = pd.read_excel(filepath,sheet_name=sheet_name)
+    # Load data
+    data = pd.read_excel(filepath, sheet_name=sheet_name)
     if data.isnull().any().any():
-        print("发现缺失值，使用中位数填补...")
+        print("Missing values detected, filling with median...")
         data = data.fillna(data.median(numeric_only=True))
     check_replicate(data)
     data = data[[col for col in data.columns if col.endswith(('_1', '_2', '_3', '_4', target_col, condition_col, genotype_col))]]
-    # 划分数据集
+    # Split dataset
     train_data, test_data = stratified_group_split(
         data,
         condition_col=condition_col,
         genotype_col=genotype_col,
         test_size=0.3,
-        random_state=random_state)
+        random_state=random_state
+    )
     
-    # 分离特征和目标
-    X_train = train_data.drop(columns=[target_col,condition_col,genotype_col])
+    # Separate features and target
+    X_train = train_data.drop(columns=[target_col, condition_col, genotype_col])
     y_train = train_data[target_col]
-    X_test = test_data.drop(columns=[target_col,condition_col,genotype_col])
+    X_test = test_data.drop(columns=[target_col, condition_col, genotype_col])
     y_test = test_data[target_col]
     
     return X_train, X_test, y_train, y_test
 
 def check_replicate(data):
-    # if 'Condition' not in data.columns or 'Genotype' not in data.columns:
-    #     print("错误：Condition 或 Genotype 列不存在！")
-    # exit()
-
-    # 按 Condition 和 Genotype 分组，统计每组的重复次数
+    # Group by Condition and Genotype, count replicates
     replicate_counts = data.groupby(['Condition', 'Genotype']).size().reset_index(name='Replicate_Count')
 
-    # 按 Condition 汇总，统计重复次数分布
+    # Summarize replicate counts by Condition
     condition_summary = replicate_counts.groupby('Condition')['Replicate_Count'].value_counts().unstack(fill_value=0)
 
-    # 打印重复次数统计
-    print("\n每种 Condition 下 Genotype 的重复次数统计：")
+    # Print replicate count statistics
+    print("\nReplicate count statistics for Genotypes under each Condition:")
     print(condition_summary)
 
-    # 打印详细信息
+    # Print detailed information
     conditions = data['Condition'].unique()
     for condition in conditions:
         print(f"\nCondition: {condition}")
         condition_data = replicate_counts[replicate_counts['Condition'] == condition]
-        print(f"  总 Genotype 数: {len(condition_data)}")
-        print(f"  重复次数分布:\n{condition_data['Replicate_Count'].value_counts().sort_index()}")
+        print(f"  Total Genotype count: {len(condition_data)}")
+        print(f"  Replicate count distribution:\n{condition_data['Replicate_Count'].value_counts().sort_index()}")
         
-        # 列出非 2 次重复的 Genotype
+        # List Genotypes with non-standard replicate counts
         non_standard = condition_data[condition_data['Replicate_Count'] != 2]
         if not non_standard.empty:
-            print(f" 非 2 次重复的 Genotype:")
+            print(f"  Genotypes with non-2 replicates:")
             for _, row in non_standard.iterrows():
-                print(f"    Genotype {row['Genotype']}: {row['Replicate_Count']} 次")
-# 5. 主函数
+                print(f"    Genotype {row['Genotype']}: {row['Replicate_Count']} replicates")
+
+# 5. Main function
 def main():
-    dataset_random_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 100, 123, 200, 300, 400, 500, 1234, 2025, 12345]
+    dataset_random_states = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 100, 123, 200, 300, 400, 500, 1234, 2025, 12345]
     all_results = []
+
     for dataset_random_state in dataset_random_states:
         data_path = 'file2.xlsx'
         sheet_name = "3d_TKW"
         target_col = "1000GrainWeight"
-        X_train, X_test, y_train, y_test = load_and_split_data(data_path, sheet_name=sheet_name, target_col=target_col, random_state=dataset_random_state)
-        print(X_train)
 
-        # # Feature Selection
+        # Load and split data
+        X_train, X_test, y_train, y_test = load_and_split_data(
+            data_path,
+            sheet_name=sheet_name,
+            target_col=target_col,
+            random_state=dataset_random_state
+        )
+
+        # Feature selection
         selected_features = feature_selection(X_train, y_train)
         X_train_selected = X_train[selected_features]
         X_test_selected = X_test[selected_features]
-        
-        # 基础模型训练
-        print("\n=== 基础模型比较 ===")
+
+        # Standardize features
         scaler = StandardScaler()
         X_train_selected = scaler.fit_transform(X_train_selected)
         X_test_selected = scaler.transform(X_test_selected)
+
+        # Train and evaluate base models
         results = train_and_optimize(X_train_selected, y_train, X_test_selected, y_test)
-        
-        # 保存结果
+
+        # Save model results
         results_df = pd.DataFrame(results).T
         results_df.drop(columns=['Model'], inplace=True)
         results_df.rename(columns={'Test_R2': 'Test_Adjusted_R2', 'CV_R2_mean': 'CV_Adjusted_R2_mean'}, inplace=True)
         results_file = f"model_performance_{sheet_name}_rs{dataset_random_state}.csv"
         results_df.to_csv(results_file)
-        print("\n模型结果已保存到 model_performance")
+        print(f"\nModel results saved to {results_file}")
 
         results_df['random_state'] = dataset_random_state
         all_results.append(results_df)
-        
-        # 选择最佳模型进行优化
-        best_model_name = max(results, key=lambda x: results[x]['Test_R2'])
-        print(f"\n选择最佳模型进行优化: {best_model_name}")
-        
-        # 超参数优化
+
+        # Select best model
+        best_model_name = max(results, key=lambda x: results[x]['Test_R2'] if results[x]['Test_R2'] is not None else -np.inf)
+        print(f"\nSelected best model for optimization: {best_model_name}")
+
+        # Hyperparameter optimization
         best_params = optimize_with_optuna(X_train_selected, y_train, best_model_name)
-        
-        # 用最优参数训练最终模型
+
+        # Train final model with optimal parameters
         if best_model_name == 'Random Forest':
             final_model = RandomForestRegressor(**best_params, random_state=42)
         elif best_model_name == 'XGBoost':
             final_model = XGBRegressor(**best_params, random_state=42)
         elif best_model_name == 'LightGBM':
             final_model = LGBMRegressor(**best_params, random_state=42)
+        elif best_model_name == 'SVR':
+            final_model = SVR(**best_params)
         elif best_model_name == 'Ridge':
             final_model = Ridge(**best_params)
         elif best_model_name == 'KNN Regression':
             final_model = KNeighborsRegressor(**best_params)
         elif best_model_name == 'CatBoost':
-            final_model = CatBoostRegressor(**best_params,random_state=42)
+            final_model = CatBoostRegressor(**best_params, random_state=42, verbose=0)
+        else:
+            print(f"Unsupported model: {best_model_name}, skipping final training")
+            continue
+
+        # Train final model
         final_model.fit(X_train_selected, y_train)
-        
-        # 评估最终模型
-        y_pred = final_model.predict(X_test_selected)
-        final_r2 = adjusted_r2_score(y_test, y_pred, X_test_selected.shape[1], len(y_test))
-        print(f"\n优化后模型 R²: {final_r2:.4f}")
-        break
-        # if hasattr(final_model, 'feature_importances_'):
-        #     plt.figure(figsize=(10, 6))
-        #     feat_importances = pd.Series(final_model.feature_importances_, index=selected_features)
-        #     feat_importances.nlargest(10).plot(kind='barh')
-        #     plt.title("Top 10 Important Features")
-        #     plt.savefig('feature_importance.png')
-        #     plt.close()
-        # else:
-        #     print(f"{best_model_name} 不支持特征重要性可视化")
-    final_results = pd.concat(all_results)
-    final_results.groupby('Model').agg({'Test_R2': ['mean', 'std']}).to_csv('model_stability.csv')
+        y_pred_final = final_model.predict(X_test_selected)
+        final_test_r2 = adjusted_r2_score(y_test, y_pred_final, X_test_selected.shape[1], len(y_test))
+        print(f"Final model {best_model_name} Test Adjusted R²: {final_test_r2:.4f}")
+
+        # Save final model
+        model_filename = f"final_model_{best_model_name.lower().replace(' ', '_')}_rs{dataset_random_state}.joblib"
+        joblib.dump(final_model, model_filename)
+        print(f"Model saved to {model_filename}")
+
+    # Summarize all results
+    all_results_df = pd.concat(all_results)
+    all_results_df.to_csv(f"all_results_summary_{sheet_name}.csv")
+    print(f"\nAll random seed results summarized and saved to all_results_summary_{sheet_name}.csv")
 
 if __name__ == "__main__":
     main()
